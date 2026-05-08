@@ -1,30 +1,76 @@
+export const ISS_BASE_API = "https://api.wheretheiss.at/v1/satellites/25544";
+export const ASTROS_API = "http://api.open-notify.org/astros.json";
+const ASTROS_PROXY = `https://api.allorigins.win/raw?url=${encodeURIComponent(ASTROS_API)}`;
+
 export function calculateSpeed(pos1, pos2, timeDiffSeconds) {
   if (!pos1 || !pos2 || timeDiffSeconds <= 0) return 0;
-  
-  const R = 6371; // Earth's radius in km 
+
+  const R = 6371;
   const toRad = (deg) => deg * (Math.PI / 180);
   const dLat = toRad(pos2.lat - pos1.lat);
-  const dLon = toRad(pos2.lng - pos1.lng); 
+  const dLon = toRad(pos2.lng - pos1.lng);
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(pos1.lat)) * Math.cos(toRad(pos2.lat)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2); 
+    Math.cos(toRad(pos1.lat)) * Math.cos(toRad(pos2.lat)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // distance in km 
-  const speedKmh = (distance / timeDiffSeconds) * 3600;
-  return speedKmh;
+  const distance = R * c;
+
+  return (distance / timeDiffSeconds) * 3600;
 }
 
-export const ISS_BASE_API = "https://api.wheretheiss.at/v1/satellites/25544";
-export const ASTROS_API = "https://api.open-notify.org/astros.json";
+export function formatCoordinate(value, positiveLabel, negativeLabel) {
+  const label = value >= 0 ? positiveLabel : negativeLabel;
+  return `${Math.abs(value).toFixed(4)}° ${label}`;
+}
 
-// Reverse Geocoding using Nominatim (free, no key required for low volume)
+export async function fetchJson(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`Request failed with status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchAstronauts() {
+  const data = await fetchJson(ASTROS_PROXY);
+
+  return {
+    number: Number(data.number) || 0,
+    people: Array.isArray(data.people) ? data.people : [],
+  };
+}
+
 export async function getNearestPlace(lat, lng) {
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`);
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=4&addressdetails=1`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Geocoder status ${response.status}`);
+    }
+
     const data = await response.json();
-    return data.display_name || "Unknown Location (Ocean)";
+    const address = data.address || {};
+    const placeName = address.city || address.town || address.village || address.state || address.country;
+
+    if (placeName) {
+      return placeName;
+    }
+
+    if (address.ocean || address.sea) {
+      return address.ocean || address.sea;
+    }
+
+    return data.display_name || "Over open water";
   } catch (error) {
     console.error("Geocoding error:", error);
-    return "International Waters";
+    return "Location unavailable";
   }
 }

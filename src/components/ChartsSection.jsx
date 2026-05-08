@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -11,7 +10,7 @@ import {
   ArcElement,
 } from 'chart.js';
 import { Line, Pie } from 'react-chartjs-2';
-import { BarChart3, PieChart as PieChartIcon, Activity } from 'lucide-react';
+import { PieChart as PieChartIcon, Activity } from 'lucide-react';
 
 ChartJS.register(
   CategoryScale,
@@ -24,7 +23,8 @@ ChartJS.register(
   ArcElement
 );
 
-const ChartsSection = ({ issHistory, newsData }) => {
+const ChartsSection = ({ issHistory, newsByCategory = {} }) => {
+  const newsData = Object.values(newsByCategory).flat();
   const lineData = {
     labels: issHistory.map(h => h.timestamp),
     datasets: [
@@ -75,17 +75,16 @@ const ChartsSection = ({ issHistory, newsData }) => {
     },
   };
 
-  // Process news sources for pie chart
-  const sourceCounts = newsData.reduce((acc, curr) => {
-    acc[curr.source] = (acc[curr.source] || 0) + 1;
+  const categoryCounts = Object.entries(newsByCategory).reduce((acc, [category, articles]) => {
+    acc[category] = articles.length;
     return acc;
   }, {});
 
   const pieData = {
-    labels: Object.keys(sourceCounts),
+    labels: Object.keys(categoryCounts),
     datasets: [
       {
-        data: Object.values(sourceCounts),
+        data: Object.values(categoryCounts),
         backgroundColor: [
           '#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51',
           '#6a4c93', '#1982c4', '#8ac926', '#ff595e', '#ffca3a'
@@ -124,10 +123,10 @@ const ChartsSection = ({ issHistory, newsData }) => {
             <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl flex items-center justify-center">
               <PieChartIcon size={22} />
             </div>
-            <h3 className="text-xl font-bold text-slate-800 dark:text-white">News Source Distribution</h3>
+            <h3 className="text-xl font-bold text-slate-800 dark:text-white">News Category Distribution</h3>
           </div>
           <div className="flex-1 flex items-center justify-center">
-            {newsData.length > 0 ? (
+            {Object.keys(categoryCounts).length > 0 ? (
               <div className="w-full max-w-[350px]">
                 <Pie data={pieData} options={{ maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { weight: 'bold', size: 10 } } } } }} />
               </div>

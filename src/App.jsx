@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTheme } from './context/ThemeContext';
 import ISSSection from './components/ISSSection';
 import NewsSection from './components/NewsSection';
@@ -11,16 +11,24 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('iss');
   const [issData, setIssData] = useState({ lat: 0, lng: 0, speed: 0, location: "Orbit", peopleCount: 0, peopleNames: [] });
   const [issHistory, setIssHistory] = useState([]);
-  const [newsData, setNewsData] = useState([]);
+  const [newsByCategory, setNewsByCategory] = useState({});
+  const newsData = Object.values(newsByCategory).flat();
 
   const handleISSUpdate = (data) => {
     if (!data) return;
     setIssData(data);
-    setIssHistory(prev => [...prev.slice(-29), { ...data, timestamp: new Date().toLocaleTimeString() }]);
+    setIssHistory((prev) => [...prev.slice(-29), {
+      ...data,
+      timestamp: new Date((data.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString(),
+    }]);
   };
 
   const handleNewsUpdate = (data) => {
-    setNewsData(data);
+    if (!data?.category) return;
+    setNewsByCategory((prev) => ({
+      ...prev,
+      [data.category]: data.articles || [],
+    }));
   };
 
   const tabs = [
@@ -71,12 +79,12 @@ const App = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
           {activeTab === 'iss' && <ISSSection onDataUpdate={handleISSUpdate} />}
           {activeTab === 'news' && <NewsSection onDataUpdate={handleNewsUpdate} />}
-          {activeTab === 'charts' && <ChartsSection issHistory={issHistory} newsData={newsData} />}
+          {activeTab === 'charts' && <ChartsSection issHistory={issHistory} newsByCategory={newsByCategory} />}
         </div>
       </main>
 
       {/* Chatbot */}
-      <Chatbot dashboardData={{ iss: issData, news: newsData }} />
+      <Chatbot dashboardData={{ iss: issData, news: newsData, newsByCategory }} />
 
       {/* Footer */}
       <footer className="max-w-6xl mx-auto px-4 py-12 border-t border-slate-200 dark:border-slate-800 text-center text-slate-400 text-sm">

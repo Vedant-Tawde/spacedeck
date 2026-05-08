@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Send, Trash2, MessageSquare } from 'lucide-react';
 import { askAI, getChatHistory, saveChatHistory } from '../utils/aiUtils';
 
@@ -25,9 +25,12 @@ const Chatbot = ({ dashboardData }) => {
     setInput("");
     setIsLoading(true);
 
-    const aiResponse = await askAI(input, dashboardData);
-    setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    setIsLoading(false);
+    try {
+      const aiResponse = await askAI(input, dashboardData);
+      setMessages(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const clearChat = () => {

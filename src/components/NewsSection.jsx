@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchNews, getCachedNews, setCachedNews } from '../utils/newsUtils';
-import { Search, RefreshCw, ExternalLink, Calendar, User } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink, Calendar, AlertCircle } from 'lucide-react';
 
 const NewsSection = ({ onDataUpdate }) => {
   const [articles, setArticles] = useState([]);
@@ -8,29 +8,44 @@ const NewsSection = ({ onDataUpdate }) => {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("date"); 
   const [category, setCategory] = useState("space");
+  const [error, setError] = useState(null);
 
-  const loadNews = async (force = false) => {
+  const loadNews = useCallback(async (force = false, query = "") => {
     setLoading(true);
+    setError(null);
+
     if (!force) {
-      const cached = getCachedNews(category, search);
+      const cached = getCachedNews(category, query);
       if (cached) {
         setArticles(cached);
-        onDataUpdate(cached);
+        onDataUpdate({ category, articles: cached });
         setLoading(false);
         return;
       }
     }
 
-    const data = await fetchNews(category, search);
-    setArticles(data);
-    setCachedNews(data, category, search);
-    onDataUpdate(data);
-    setLoading(false);
-  };
+    try {
+      const data = await fetchNews(category, query);
+      setArticles(data);
+      setCachedNews(data, category, query);
+      onDataUpdate({ category, articles: data });
+    } catch (fetchError) {
+      console.error("News fetch error:", fetchError);
+      setArticles([]);
+      setError(fetchError.message || "Unable to fetch live news right now.");
+      onDataUpdate({ category, articles: [] });
+    } finally {
+      setLoading(false);
+    }
+  }, [category, onDataUpdate]);
 
   useEffect(() => {
-    loadNews();
-  }, [category]);
+    const initialLoad = setTimeout(() => {
+      loadNews();
+    }, 0);
+
+    return () => clearTimeout(initialLoad);
+  }, [category, loadNews]);
 
   const filteredArticles = articles
     .filter(a => a.title.toLowerCase().includes(search.toLowerCase()))
@@ -41,6 +56,13 @@ const NewsSection = ({ onDataUpdate }) => {
 
   return (
     <section className="space-y-8 animate-fade-in">
+      {error && (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+          <AlertCircle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* Search & Filters */}
       <div className="flex flex-col lg:flex-row gap-6 items-center justify-between bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm">
         <div className="relative w-full lg:w-96">
@@ -81,7 +103,7 @@ const NewsSection = ({ onDataUpdate }) => {
           </select>
           
           <button 
-            onClick={() => loadNews(true)}
+            onClick={() => loadNews(true, search)}
             className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 transition-all"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
