@@ -31,22 +31,20 @@ export async function askAI(userQuery, dashboardData) {
   `;
 
   try {
-    const response = await hf.textGeneration({
-      model: "mistralai/Mistral-7B-Instruct-v0.2",
-      inputs: `<s>[INST] ${context}\n\nUser Question: ${userQuery} [/INST]`,
-      parameters: {
-        max_new_tokens: 250,
-        temperature: 0.1,
-      },
-      options: {
-        wait_for_model: true
-      }
+    const response = await hf.chatCompletion({
+      model: "HuggingFaceH4/zephyr-7b-beta",
+      messages: [
+        { role: "system", content: context },
+        { role: "user", content: userQuery }
+      ],
+      max_tokens: 250,
+      temperature: 0.1,
     });
 
-    return response.generated_text.split("[/INST]").pop().trim();
+    return response.choices[0].message.content.trim();
   } catch (error) {
     console.error("AI Error:", error);
-    return "Sorry, I encountered an error while processing your request.";
+    return "I'm having a bit of trouble connecting to my orbital processing unit. Please try again in a moment.";
   }
 }
 
