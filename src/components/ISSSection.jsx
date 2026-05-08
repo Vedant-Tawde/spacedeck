@@ -178,12 +178,6 @@ const ISSSection = ({ onDataUpdate }) => {
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold uppercase tracking-widest rounded-2xl flex items-center gap-3 animate-pulse">
-          <Info size={16} />
-          <span>{error}</span>
-        </div>
-      )}
     </div>
   );
 };
