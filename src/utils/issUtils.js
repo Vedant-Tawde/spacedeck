@@ -14,19 +14,17 @@ export function calculateSpeed(pos1, pos2, timeDiffSeconds) {
   return speedKmh;
 }
 
-const PROXY = "https://api.allorigins.win/raw?url=";
+export const ISS_BASE_API = "https://api.wheretheiss.at/v1/satellites/25544";
+export const ASTROS_API = "https://api.open-notify.org/astros.json";
 
-export const ISS_BASE_API = `${PROXY}${encodeURIComponent("https://api.wheretheiss.at/v1/satellites/25544")}`;
-export const ASTROS_API = `${PROXY}${encodeURIComponent("https://api.open-notify.org/astros.json")}`;
-
+// Reverse Geocoding using Nominatim (free, no key required for low volume)
 export async function getNearestPlace(lat, lng) {
   try {
-    const apiUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`;
-    const response = await fetch(`${PROXY}${encodeURIComponent(apiUrl)}`);
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`);
     const data = await response.json();
     return data.display_name || "Unknown Location (Ocean)";
   } catch (error) {
     console.error("Geocoding error:", error);
-    return "Unknown Location";
+    return "International Waters";
   }
 }

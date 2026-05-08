@@ -7,44 +7,52 @@ export async function askAI(userQuery, dashboardData) {
     return "AI is not configured. Please add your Hugging Face token to the .env file.";
   }
 
-  const hf = new HfInference(token);
-
   const context = `
-    You are a helpful dashboard assistant. You can ONLY answer questions based on the provided dashboard data.
-    If the answer is not in the data, politely say you don't know or that it's outside your scope.
-    
     Current ISS Data:
     - Latitude: ${dashboardData.iss.lat}
     - Longitude: ${dashboardData.iss.lng}
-    - Speed: ${dashboardData.iss.speed.toFixed(2)} km/h
+    - Speed: ${dashboardData.iss.speed} km/h
     - Location: ${dashboardData.iss.location}
     - People in Space: ${dashboardData.iss.peopleCount}
     - Astronauts: ${dashboardData.iss.peopleNames.join(", ")}
     
     Latest News Headlines:
-    ${dashboardData.news.map((n, i) => `${i + 1}. ${n.title} (Source: ${n.source})`).join("\n")}
+    ${(dashboardData.news || []).slice(0, 5).map((n, i) => `${i + 1}. ${n.title}`).join("\n")}
     
     Rules:
-    - No internet knowledge.
-    - No guessing.
-    - Be concise.
+    - Answer based ONLY on the data above.
+    - Be extremely concise (1-2 sentences).
   `;
 
   try {
-    const response = await hf.chatCompletion({
-      model: "HuggingFaceH4/zephyr-7b-beta",
-      messages: [
-        { role: "system", content: context },
-        { role: "user", content: userQuery }
-      ],
-      max_tokens: 250,
-      temperature: 0.1,
-    });
+    const response = await fetch(
+      `https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify({
+          inputs: `<|system|>\n${context}</s>\n<|user|>\n${userQuery}</s>\n<|assistant|>`,
+          parameters: { max_new_tokens: 150, temperature: 0.1 },
+          options: { wait_for_model: true }
+        }),
+      }
+    );
 
-    return response.choices[0].message.content.trim();
+    const result = await response.json();
+    
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    // Zephyr returns an array for text-generation
+    const output = result[0]?.generated_text || "";
+    return output.split("<|assistant|>").pop().trim();
   } catch (error) {
-    console.error("AI Error:", error);
-    return "I'm having a bit of trouble connecting to my orbital processing unit. Please try again in a moment.";
+    console.error("DIRECT AI ERROR:", error);
+    return `AI Error: ${error.message?.substring(0, 50)}`;
   }
 }
 
