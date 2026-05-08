@@ -1,5 +1,3 @@
-import { HfInference } from "@huggingface/inference";
-
 export async function askAI(userQuery, dashboardData) {
   const token = import.meta.env.VITE_AI_TOKEN;
   
@@ -13,46 +11,36 @@ export async function askAI(userQuery, dashboardData) {
     - Longitude: ${dashboardData.iss.lng}
     - Speed: ${dashboardData.iss.speed} km/h
     - Location: ${dashboardData.iss.location}
-    - People in Space: ${dashboardData.iss.peopleCount}
-    - Astronauts: ${dashboardData.iss.peopleNames.join(", ")}
+    - People: ${dashboardData.iss.peopleCount}
     
-    Latest News Headlines:
-    ${(dashboardData.news || []).slice(0, 5).map((n, i) => `${i + 1}. ${n.title}`).join("\n")}
-    
-    Rules:
-    - Answer based ONLY on the data above.
-    - Be extremely concise (1-2 sentences).
+    Latest News:
+    ${(dashboardData.news || []).slice(0, 3).map((n) => `- ${n.title}`).join("\n")}
   `;
 
   try {
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        method: "POST",
-        body: JSON.stringify({
-          inputs: `<|system|>\n${context}</s>\n<|user|>\n${userQuery}</s>\n<|assistant|>`,
-          parameters: { max_new_tokens: 150, temperature: 0.1 },
-          options: { wait_for_model: true }
-        }),
-      }
-    );
+    // Using a proxy to bypass Vercel CORS blocks
+    const PROXY = "https://api.allorigins.win/raw?url=";
+    const API_URL = "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta";
+    
+    const response = await fetch(PROXY + encodeURIComponent(API_URL), {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        inputs: `<|system|>\n${context}</s>\n<|user|>\n${userQuery}</s>\n<|assistant|>`,
+        parameters: { max_new_tokens: 100, temperature: 0.1 },
+        options: { wait_for_model: true }
+      }),
+    });
 
     const result = await response.json();
-    
-    if (result.error) {
-      throw new Error(result.error);
-    }
-
-    // Zephyr returns an array for text-generation
     const output = result[0]?.generated_text || "";
-    return output.split("<|assistant|>").pop().trim();
+    return output.split("<|assistant|>").pop().trim() || "I'm processing the orbital data. Ask me again in a moment!";
   } catch (error) {
-    console.error("DIRECT AI ERROR:", error);
-    return `AI Error: ${error.message?.substring(0, 50)}`;
+    console.error("PROXY AI ERROR:", error);
+    return "The AI link is currently congested. Please try one more time.";
   }
 }
 
@@ -62,5 +50,5 @@ export function getChatHistory() {
 }
 
 export function saveChatHistory(messages) {
-  localStorage.setItem("chat_history", JSON.stringify(messages.slice(-30)));
+  localStorage.setItem("chat_history", JSON.stringify(messages.slice(-20)));
 }
